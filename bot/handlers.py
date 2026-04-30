@@ -9,8 +9,9 @@ router = Router()
 
 # Simple regex for URL detection
 URL_PATTERN = re.compile(
-    r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
 )
+
 
 @router.message(F.text)
 async def handle_message(message: types.Message, download_queue: asyncio.Queue):
@@ -25,10 +26,10 @@ async def handle_message(message: types.Message, download_queue: asyncio.Queue):
 
     # Use the first URL found
     url = urls[0]
-    
+
     status_msg = await message.answer(
         "⏳ **Task added to queue.**\nPlease wait for the download to start...",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
     )
-    
+
     await download_queue.put((url, message.chat.id, status_msg.message_id))

@@ -1,9 +1,8 @@
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import TelegramAPIServer
-from aiogram.filters import Command
 from bot.config import settings
 from bot.handlers import router
 from bot.downloader import worker
@@ -12,12 +11,11 @@ from bot.downloader import worker
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def main():
     # Setup custom API server for Local Bot API
-    session = AiohttpSession(
-        api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL)
-    )
-    
+    session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL))
+
     # Initialize bot and dispatcher
     bot = Bot(token=settings.BOT_TOKEN, session=session)
     dp = Dispatcher()
@@ -30,10 +28,7 @@ async def main():
     dp.include_router(router)
 
     # Start worker tasks
-    workers = [
-        asyncio.create_task(worker(bot, queue))
-        for _ in range(5)
-    ]
+    workers = [asyncio.create_task(worker(bot, queue)) for _ in range(5)]
 
     logger.info("Starting bot...")
     try:
@@ -43,6 +38,7 @@ async def main():
         for w in workers:
             w.cancel()
         await bot.session.close()
+
 
 if __name__ == "__main__":
     try:
