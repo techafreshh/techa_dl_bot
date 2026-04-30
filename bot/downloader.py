@@ -135,7 +135,7 @@ async def worker(bot: Bot, queue: asyncio.Queue):
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
                     document=document,
-                    caption=f"File: {filename}",
+                    caption=f"{filename}",
                 )
                 await bot.edit_message_text(
                     text="✅ **Successfully transferred!**",
