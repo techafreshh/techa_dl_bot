@@ -113,7 +113,10 @@ async def worker(bot: Bot, queue: asyncio.Queue):
             )
             try:
                 await bot.edit_message_text(
-                    text, chat_id, status_msg_id, parse_mode="Markdown"
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=status_msg_id,
+                    parse_mode="Markdown",
                 )
             except Exception:
                 pass  # Avoid spamming logs if message wasn't edited
@@ -123,9 +126,9 @@ async def worker(bot: Bot, queue: asyncio.Queue):
 
             if success:
                 await bot.edit_message_text(
-                    "📤 **Uploading to Telegram...**",
-                    chat_id,
-                    status_msg_id,
+                    text="📤 **Uploading to Telegram...**",
+                    chat_id=chat_id,
+                    message_id=status_msg_id,
                     parse_mode="Markdown",
                 )
                 document = FSInputFile(destination)
@@ -135,23 +138,25 @@ async def worker(bot: Bot, queue: asyncio.Queue):
                     caption=f"File: {filename}\nSource: {url}",
                 )
                 await bot.edit_message_text(
-                    "✅ **Successfully transferred!**",
-                    chat_id,
-                    status_msg_id,
+                    text="✅ **Successfully transferred!**",
+                    chat_id=chat_id,
+                    message_id=status_msg_id,
                     parse_mode="Markdown",
                 )
             else:
                 await bot.edit_message_text(
-                    "❌ **Failed to download the file.**",
-                    chat_id,
-                    status_msg_id,
+                    text="❌ **Failed to download the file.**",
+                    chat_id=chat_id,
+                    message_id=status_msg_id,
                     parse_mode="Markdown",
                 )
         except Exception as e:
             logger.exception(f"Worker error: {e}")
             try:
                 await bot.edit_message_text(
-                    f"❌ **Error:** {str(e)}", chat_id, status_msg_id
+                    text=f"❌ **Error:** {str(e)}",
+                    chat_id=chat_id,
+                    message_id=status_msg_id,
                 )
             except Exception:
                 pass
