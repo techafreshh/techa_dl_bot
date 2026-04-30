@@ -5,6 +5,8 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import TelegramAPIServer
 from aiogram.filters import Command
 from bot.config import settings
+from bot.handlers import router
+from bot.downloader import worker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,23 +22,26 @@ async def main():
     bot = Bot(token=settings.BOT_TOKEN, session=session)
     dp = Dispatcher()
 
-    # Echo handler
-    @dp.message(Command("start"))
-    async def cmd_start(message: types.Message):
-        await message.answer("Hello! I am your Download Bot. Send me a link to start.")
+    # Initialize download queue and store in dispatcher workflow data
+    queue = asyncio.Queue()
+    dp["download_queue"] = queue
 
-    @dp.message()
-    async def echo_all(message: types.Message):
-        if message.from_user.id not in settings.ADMIN_IDS:
-            logger.warning(f"Unauthorized access attempt by user {message.from_user.id}")
-            return
-        
-        await message.answer(f"Echo: {message.text}")
+    # Include handlers
+    dp.include_router(router)
+
+    # Start worker tasks
+    workers = [
+        asyncio.create_task(worker(bot, queue))
+        for _ in range(5)
+    ]
 
     logger.info("Starting bot...")
     try:
         await dp.start_polling(bot)
     finally:
+        # Cancel workers on stop
+        for w in workers:
+            w.cancel()
         await bot.session.close()
 
 if __name__ == "__main__":

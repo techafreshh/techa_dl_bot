@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     # Required for Local Bot API server
     TELEGRAM_API_ID: int
     TELEGRAM_API_HASH: str
+    DOWNLOAD_DIR: str = "/var/lib/telegram-bot-api/downloads"
 
     model_config = SettingsConfigDict(
         env_file=".env",
