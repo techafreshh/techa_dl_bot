@@ -13,9 +13,10 @@ async def test_successful_download(tmp_path):
 
     with aioresponses() as m:
         m.get(url, status=200, body=b"test data content")
-        success = await dm.download(url, str(dest))
+        success, filename = await dm.download(url, str(dest))
 
         assert success is True
+        assert filename == "file.txt"
         assert dest.exists()
         assert dest.read_bytes() == b"test data content"
 
@@ -28,9 +29,10 @@ async def test_failed_download_404(tmp_path):
 
     with aioresponses() as m:
         m.get(url, status=404)
-        success = await dm.download(url, str(dest))
+        success, filename = await dm.download(url, str(dest))
 
         assert success is False
+        assert filename == ""
         assert not dest.exists()
 
 
@@ -47,7 +49,8 @@ async def test_exception_cleanup(tmp_path):
         dest.write_text("partial data")
 
         with patch("os.remove") as mock_remove:
-            success = await dm.download(url, str(dest))
+            success, filename = await dm.download(url, str(dest))
 
             assert success is False
+            assert filename == ""
             mock_remove.assert_called_once_with(str(dest))

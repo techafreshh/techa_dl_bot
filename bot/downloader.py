@@ -2,13 +2,14 @@ import asyncio
 import logging
 import os
 import time
-from typing import Callable, Optional, Any
-from urllib.parse import urlparse
+from typing import Callable, Optional, Any, Tuple
 
 import aiohttp
+import aiofiles
 from aiogram import Bot
 from aiogram.types import FSInputFile
 from bot.config import settings
+from bot.utils import get_filename_from_headers
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,11 @@ class DownloadManager:
         url: str,
         destination: str,
         progress_callback: Optional[Callable[[int, int, float], Any]] = None,
-    ) -> bool:
+    ) -> Tuple[bool, str]:
         """
         Downloads a file from url to destination in chunks.
         progress_callback: (downloaded_bytes, total_bytes, speed_bps)
+        Returns: (success, detected_filename)
         """
         try:
             async with aiohttp.ClientSession() as session:
@@ -42,8 +44,9 @@ class DownloadManager:
                         logger.error(
                             f"Failed to download {url}, status: {response.status}"
                         )
-                        return False
+                        return False, ""
 
+                    detected_filename = get_filename_from_headers(response.headers, url)
                     total_size = int(response.headers.get("Content-Length", 0))
                     downloaded_size = 0
                     start_time = time.time()
@@ -51,11 +54,11 @@ class DownloadManager:
 
                     os.makedirs(os.path.dirname(destination), exist_ok=True)
 
-                    with open(destination, "wb") as f:
+                    async with aiofiles.open(destination, "wb") as f:
                         async for chunk in response.content.iter_chunked(
                             self.chunk_size
                         ):
-                            f.write(chunk)
+                            await f.write(chunk)
                             downloaded_size += len(chunk)
 
                             current_time = time.time()
@@ -80,12 +83,12 @@ class DownloadManager:
                                     )
                                 last_update_time = current_time
 
-                    return True
+                    return True, detected_filename
         except Exception as e:
             logger.exception(f"Error during download of {url}: {e}")
             if os.path.exists(destination):
                 os.remove(destination)
-            return False
+            return False, ""
 
 
 async def worker(bot: Bot, queue: asyncio.Queue):
@@ -98,10 +101,10 @@ async def worker(bot: Bot, queue: asyncio.Queue):
         url, chat_id, status_msg_id = await queue.get()
         logger.info(f"Worker processing {url} for chat {chat_id}")
 
-        filename = os.path.basename(urlparse(url).path) or "downloaded_file"
-        destination = os.path.join(
-            settings.DOWNLOAD_DIR, f"{int(time.time())}_{filename}"
-        )
+        # Use a generic name for the initial temporary path
+        # The real filename will be discovered during download
+        temp_filename = f"dl_{int(time.time())}"
+        destination = os.path.join(settings.DOWNLOAD_DIR, temp_filename)
 
         async def progress_callback(downloaded, total, speed):
             percent = (downloaded / total * 100) if total > 0 else 0
@@ -122,23 +125,25 @@ async def worker(bot: Bot, queue: asyncio.Queue):
                 pass  # Avoid spamming logs if message wasn't edited
 
         try:
-            success = await dm.download(url, destination, progress_callback)
+            success, original_filename = await dm.download(
+                url, destination, progress_callback
+            )
 
             if success:
                 await bot.edit_message_text(
-                    text="📤 **Uploading to Telegram...**",
+                    text=f"📤 **Uploading {original_filename}...**",
                     chat_id=chat_id,
                     message_id=status_msg_id,
                     parse_mode="Markdown",
                 )
-                document = FSInputFile(destination)
+                document = FSInputFile(destination, filename=original_filename)
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
                     document=document,
-                    caption=f"{filename}",
+                    caption=f"{original_filename}",
                 )
                 await bot.edit_message_text(
-                    text="✅ **Successfully transferred!**",
+                    text=f"✅ **Successfully transferred:** {original_filename}",
                     chat_id=chat_id,
                     message_id=status_msg_id,
                     parse_mode="Markdown",
