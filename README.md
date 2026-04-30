@@ -85,8 +85,21 @@ Once the bot is running, follow these steps to verify it:
     -   Notify when it starts uploading to the group.
     -   Send a final "Success" message once the file appears in the target group.
 
-### 3. Verify
--   Check the **Target Group**. You should see the file uploaded with its source URL and original filename.
+### 👥 Group Usage (New!)
+You can now trigger downloads directly from groups by tagging the bot:
+1.  Add the bot to your group.
+2.  Tag the bot and paste the link: `@YourBotName https://example.com/file.zip`
+3.  **Pro-Tip (The Space Trick):** If typing the bot's name triggers "Inline Mode" (showing an 'X' instead of a 'Send' button), simply **put a space before the `@`** (e.g., ` @YourBotName [link]`) or type any character first.
+
+---
+
+## ⚙️ Essential Bot Configuration (BotFather)
+
+To ensure the bot works correctly in groups, verify these settings in [@BotFather](https://t.me/BotFather):
+
+1.  **Allow Groups:** `Bot Settings` > `Allow Groups?` > **ENABLED**.
+2.  **Privacy Mode:** `Bot Settings` > `Group Privacy` > **DISABLED**. (This allows the bot to see links in groups it is an admin of).
+3.  **Admin Rights:** The bot **MUST** be an Administrator in your target group to upload files larger than 50MB.
 
 ---
 
