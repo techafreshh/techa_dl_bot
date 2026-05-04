@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import time
+import uuid
 from typing import Callable, Optional, Any, Tuple
 
 import aiohttp
@@ -101,9 +102,8 @@ async def worker(bot: Bot, queue: asyncio.Queue):
         url, chat_id, status_msg_id = await queue.get()
         logger.info(f"Worker processing {url} for chat {chat_id}")
 
-        # Use a generic name for the initial temporary path
-        # The real filename will be discovered during download
-        temp_filename = f"dl_{int(time.time())}"
+        # Use a unique name for the temporary file to avoid collisions
+        temp_filename = f"dl_{uuid.uuid4().hex}"
         destination = os.path.join(settings.DOWNLOAD_DIR, temp_filename)
 
         async def progress_callback(downloaded, total, speed):

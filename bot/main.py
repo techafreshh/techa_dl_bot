@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 async def main():
     # Setup custom API server for Local Bot API
-    session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL))
+    session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL, is_local=True))
 
     # Initialize bot and dispatcher
     bot = Bot(token=settings.BOT_TOKEN, session=session)

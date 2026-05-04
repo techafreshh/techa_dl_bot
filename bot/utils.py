@@ -16,6 +16,18 @@ def get_extension_from_mime(mime_type: str) -> Optional[str]:
     return mimetypes.guess_extension(mime_type.split(";")[0].strip())
 
 
+def sanitize_filename(filename: str) -> str:
+    """
+    Remove or replace characters that are unsafe for filenames.
+    """
+    # Remove null bytes
+    filename = filename.replace("\0", "")
+    # Replace unsafe characters with underscores
+    filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
+    # Trim to 255 characters (common filesystem limit)
+    return filename[:255]
+
+
 def get_filename_from_headers(headers: dict, url: str) -> str:
     """
     Extracts the filename from the Content-Disposition header if available,
@@ -31,8 +43,11 @@ def get_filename_from_headers(headers: dict, url: str) -> str:
         if star_match:
             star_val = star_match.group(1).strip()
             if "''" in star_val:
-                encoding, name = star_val.split("''", 1)
-                filename = unquote(name)
+                try:
+                    encoding, name = star_val.split("''", 1)
+                    filename = unquote(name)
+                except ValueError:
+                    filename = unquote(star_val)
             else:
                 filename = unquote(star_val)
 
@@ -59,4 +74,4 @@ def get_filename_from_headers(headers: dict, url: str) -> str:
         if ext:
             filename += ext
 
-    return filename
+    return sanitize_filename(filename)

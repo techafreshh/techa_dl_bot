@@ -52,3 +52,17 @@ def test_get_filename_from_headers_mediafire_link():
     # urlparse(url).path is /.../The+Boys.2019.S02E01.mp4.mp4
     # unquote transforms + to space and %xx to chars
     assert get_filename_from_headers(headers, url) == "The Boys.2019.S02E01.mp4.mp4"
+
+def test_get_filename_from_headers_sanitization():
+    headers = {"Content-Disposition": 'attachment; filename="unsafe/file\\name:with*special?chars.txt"'}
+    url = "http://example.com/download"
+    # / \ : * ? should be replaced by _
+    assert get_filename_from_headers(headers, url) == "unsafe_file_name_with_special_chars.txt"
+
+def test_get_filename_from_headers_long_filename():
+    long_name = "a" * 300 + ".txt"
+    headers = {"Content-Disposition": f'attachment; filename="{long_name}"'}
+    url = "http://example.com/download"
+    result = get_filename_from_headers(headers, url)
+    assert len(result) == 255
+    assert result.endswith("aaaaaaaaaa")
