@@ -10,6 +10,8 @@ services:
       - --local
       - --api-id=${TELEGRAM_API_ID}
       - --api-hash=${TELEGRAM_API_HASH}
+      - --dir=/var/lib/telegram-bot-api
+      - --http-ip=0.0.0.0
     # No port mapping needed for host access
     restart: always
 

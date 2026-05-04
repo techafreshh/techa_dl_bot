@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import TelegramAPIServer
@@ -13,6 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
+    # Ensure download directory exists and is accessible
+    os.makedirs(settings.DOWNLOAD_DIR, exist_ok=True)
+    try:
+        os.chmod(settings.DOWNLOAD_DIR, 0o777)
+    except Exception as e:
+        logger.warning(f"Could not set permissions on {settings.DOWNLOAD_DIR}: {e}")
+
     # Setup custom API server for Local Bot API
     session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL, is_local=True))
 

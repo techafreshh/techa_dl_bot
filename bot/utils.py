@@ -22,8 +22,17 @@ def sanitize_filename(filename: str) -> str:
     """
     # Remove null bytes
     filename = filename.replace("\0", "")
+    
+    # Remove non-ASCII characters to avoid encoding issues with the local API server
+    filename = filename.encode("ascii", "ignore").decode("ascii")
+
     # Replace unsafe characters with underscores
-    filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
+    # Allow alphanumeric, dots, dashes, underscores, and spaces
+    filename = re.sub(r"[^a-zA-Z0-9._\- ]", "_", filename)
+    
+    # Avoid multiple underscores in a row
+    filename = re.sub(r"__+", "_", filename)
+    
     # Trim to 255 characters (common filesystem limit)
     return filename[:255]
 

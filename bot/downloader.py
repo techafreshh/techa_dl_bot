@@ -8,7 +8,6 @@ from typing import Callable, Optional, Any, Tuple
 import aiohttp
 import aiofiles
 from aiogram import Bot
-from aiogram.types import FSInputFile
 from bot.config import settings
 from bot.utils import get_filename_from_headers
 
@@ -130,18 +129,36 @@ async def worker(bot: Bot, queue: asyncio.Queue):
             )
 
             if success:
+                # Ensure the file is readable by the local API server (different user/container)
+                try:
+                    os.chmod(destination, 0o666)
+                except Exception as e:
+                    logger.warning(f"Failed to set permissions on {destination}: {e}")
+
                 await bot.edit_message_text(
                     text=f"📤 **Uploading {original_filename}...**",
                     chat_id=chat_id,
                     message_id=status_msg_id,
                     parse_mode="Markdown",
                 )
-                document = FSInputFile(destination, filename=original_filename)
+
+                # Rename the file to its original sanitized name to help the API server
+                # We keep the UUID prefix to avoid collisions in the shared directory
+                final_filename = f"{uuid.uuid4().hex}_{original_filename}"
+                final_destination = os.path.join(settings.DOWNLOAD_DIR, final_filename)
+                os.rename(destination, final_destination)
+                destination = final_destination # Update for finally block cleanup
+
+                logger.info(f"Sending file via local path: {final_destination}")
+                
+                # Using a string with file:// prefix is the most reliable way 
+                # to trigger local mode upload in the Bot API server.
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=document,
+                    document=f"file://{final_destination}",
                     caption=f"{original_filename}",
                 )
+                
                 await bot.edit_message_text(
                     text=f"✅ **Successfully transferred:** {original_filename}",
                     chat_id=chat_id,
