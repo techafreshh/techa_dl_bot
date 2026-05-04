@@ -8,6 +8,7 @@ from typing import Callable, Optional, Any, Tuple
 import aiohttp
 import aiofiles
 from aiogram import Bot
+from aiogram.types import FSInputFile
 from bot.config import settings
 from bot.utils import get_filename_from_headers
 
@@ -151,11 +152,10 @@ async def worker(bot: Bot, queue: asyncio.Queue):
 
                 logger.info(f"Sending file via local path: {final_destination}")
                 
-                # Using a string with file:// prefix is the most reliable way 
-                # to trigger local mode upload in the Bot API server.
+                document = FSInputFile(final_destination, filename=original_filename)
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=f"file://{final_destination}",
+                    document=document,
                     caption=f"{original_filename}",
                 )
                 
