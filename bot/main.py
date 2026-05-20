@@ -22,9 +22,8 @@ async def main():
         logger.warning(f"Could not set permissions on {settings.DOWNLOAD_DIR}: {e}")
 
     # Setup custom API server for Local Bot API
-    # is_local=True tells aiogram to pass the local file path to the API server
-    # instead of uploading bytes via multipart. This works because both containers
-    # share the same volume at /var/lib/telegram-bot-api.
+    # is_local=True marks this as a local server (affects getFile path responses).
+    # Uploads still use multipart/form-data via FSInputFile.
     session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL, is_local=True))
 
     # Initialize bot and dispatcher

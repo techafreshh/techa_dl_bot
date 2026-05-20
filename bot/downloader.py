@@ -9,6 +9,7 @@ from typing import Callable, Optional, Any, Tuple
 import aiohttp
 import aiofiles
 from aiogram import Bot
+from aiogram.types import FSInputFile
 from bot.config import settings
 from bot.utils import get_filename_from_headers
 
@@ -152,12 +153,16 @@ async def worker(bot: Bot, queue: asyncio.Queue):
 
                 logger.info(f"Uploading file to local API server: {final_destination}")
 
-                # In local mode, pass the absolute file path as a string.
-                # The local API server reads the file directly from disk (shared volume),
-                # bypassing multipart upload entirely and avoiding FILE_PARTS_INVALID.
+                # Use FSInputFile with large chunk size (10MB) to reduce the number
+                # of multipart parts sent to the local API server.
+                document = FSInputFile(
+                    final_destination,
+                    filename=original_filename,
+                    chunk_size=10 * 1024 * 1024,
+                )
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=final_destination,
+                    document=document,
                     caption=f"{original_filename}",
                     request_timeout=1800,
                 )
