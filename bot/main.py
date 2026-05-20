@@ -22,7 +22,10 @@ async def main():
         logger.warning(f"Could not set permissions on {settings.DOWNLOAD_DIR}: {e}")
 
     # Setup custom API server for Local Bot API
-    session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL, is_local=True))
+    # We set is_local=False to ensure aiogram uploads the file to the local server
+    # rather than just passing the file path. This is more robust and still supports 2GB
+    # because the local API server allows larger uploads than the cloud API.
+    session = AiohttpSession(api=TelegramAPIServer.from_base(settings.TELEGRAM_API_URL, is_local=False))
 
     # Initialize bot and dispatcher
     bot = Bot(token=settings.BOT_TOKEN, session=session)

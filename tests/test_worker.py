@@ -61,11 +61,11 @@ async def test_worker_successful_flow(tmp_path):
                 bot.send_document.assert_called_once()
                 call_args = bot.send_document.call_args[1]
                 assert call_args["chat_id"] == 123456789
-                assert call_args["document"].startswith("file://")
-                assert "test_file.zip" in call_args["document"]
-                assert "task_uuid" in call_args["document"]
+                from aiogram.types import FSInputFile
+                assert isinstance(call_args["document"], FSInputFile)
+                assert "test_file.zip" in call_args["document"].path
+                assert "task_uuid" in call_args["document"].path
                 assert call_args["caption"] == "test_file.zip"
-                
                 # Verify cleanup: task_dir should be gone
                 dirs = [d for d in tmp_path.iterdir() if d.is_dir()]
                 assert len(dirs) == 0, f"Expected task_dir to be cleaned up, but found: {dirs}"

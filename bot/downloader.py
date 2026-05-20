@@ -9,6 +9,7 @@ from typing import Callable, Optional, Any, Tuple
 import aiohttp
 import aiofiles
 from aiogram import Bot
+from aiogram.types import FSInputFile
 from bot.config import settings
 from bot.utils import get_filename_from_headers
 
@@ -132,22 +133,13 @@ async def worker(bot: Bot, queue: asyncio.Queue):
             )
 
             if success:
-                # Create a unique directory for this specific file to preserve the original filename
-                # for the local API server's benefit (it uses the filename from the path).
+                # Create a unique directory for this specific file
                 task_id = uuid.uuid4().hex
                 task_dir = os.path.join(settings.DOWNLOAD_DIR, task_id)
                 os.makedirs(task_dir, exist_ok=True)
-                try:
-                    os.chmod(task_dir, 0o777)
-                except Exception as e:
-                    logger.warning(f"Failed to set permissions on {task_dir}: {e}")
 
                 final_destination = os.path.join(task_dir, original_filename)
                 os.rename(destination, final_destination)
-                try:
-                    os.chmod(final_destination, 0o666)
-                except Exception as e:
-                    logger.warning(f"Failed to set permissions on {final_destination}: {e}")
 
                 await bot.edit_message_text(
                     text=f"📤 **Uploading {original_filename}...**",
@@ -156,13 +148,14 @@ async def worker(bot: Bot, queue: asyncio.Queue):
                     parse_mode="Markdown",
                 )
 
-                logger.info(f"Sending file via local path: {final_destination}")
+                logger.info(f"Uploading file to local API server: {final_destination}")
 
-                # Using file:// prefix and a string bypasses some aiogram multi-part logic
-                # and is often more reliable with local Bot API servers.
+                # By setting is_local=False in main.py, FSInputFile will be uploaded
+                # to the local server via multipart/form-data. This is extremely robust.
+                document = FSInputFile(final_destination, filename=original_filename)
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=f"file://{final_destination}",
+                    document=document,
                     caption=f"{original_filename}",
                 )
 
@@ -199,4 +192,3 @@ async def worker(bot: Bot, queue: asyncio.Queue):
             except Exception as e:
                 logger.error(f"Cleanup error: {e}")
             queue.task_done()
-
