@@ -150,8 +150,8 @@ async def worker(bot: Bot, queue: asyncio.Queue):
 
                 logger.info(f"Uploading file to local API server: {final_destination}")
 
-                # By setting is_local=False in main.py, FSInputFile will be uploaded
-                # to the local server via multipart/form-data. This is extremely robust.
+                # is_local=True: aiogram passes the file path directly to the local
+                # API server, which reads it from the shared volume. No multipart needed.
                 document = FSInputFile(final_destination, filename=original_filename)
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
