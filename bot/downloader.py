@@ -9,7 +9,6 @@ from typing import Callable, Optional, Any, Tuple
 import aiohttp
 import aiofiles
 from aiogram import Bot
-from aiogram.types import FSInputFile
 from bot.config import settings
 from bot.utils import get_filename_from_headers
 
@@ -140,6 +139,9 @@ async def worker(bot: Bot, queue: asyncio.Queue):
 
                 final_destination = os.path.join(task_dir, original_filename)
                 os.rename(destination, final_destination)
+                # Ensure the file is readable by the telegram-bot-api container (uid 101)
+                os.chmod(task_dir, 0o755)
+                os.chmod(final_destination, 0o644)
 
                 await bot.edit_message_text(
                     text=f"📤 **Uploading {original_filename}...**",
@@ -150,13 +152,15 @@ async def worker(bot: Bot, queue: asyncio.Queue):
 
                 logger.info(f"Uploading file to local API server: {final_destination}")
 
-                # is_local=True: aiogram passes the file path directly to the local
-                # API server, which reads it from the shared volume. No multipart needed.
-                document = FSInputFile(final_destination, filename=original_filename)
+                # In local mode, pass the absolute file path as a string.
+                # The local API server reads the file directly from disk (shared volume),
+                # bypassing multipart upload entirely and avoiding FILE_PARTS_INVALID.
+                file_uri = f"file://{final_destination}"
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=document,
+                    document=file_uri,
                     caption=f"{original_filename}",
+                    request_timeout=1800,
                 )
 
                 await bot.edit_message_text(
