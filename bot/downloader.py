@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import shutil
 import time
 import uuid
 from typing import Callable, Optional, Any, Tuple
@@ -8,7 +9,6 @@ from typing import Callable, Optional, Any, Tuple
 import aiohttp
 import aiofiles
 from aiogram import Bot
-from aiogram.types import FSInputFile
 from bot.config import settings
 from bot.utils import get_filename_from_headers
 
@@ -98,13 +98,15 @@ async def worker(bot: Bot, queue: asyncio.Queue):
     Task format: (url, chat_id, message_id)
     """
     dm = DownloadManager()
+
     while True:
         url, chat_id, status_msg_id = await queue.get()
         logger.info(f"Worker processing {url} for chat {chat_id}")
 
-        # Use a unique name for the temporary file to avoid collisions
+        # Use a unique name for the temporary file
         temp_filename = f"dl_{uuid.uuid4().hex}"
         destination = os.path.join(settings.DOWNLOAD_DIR, temp_filename)
+        task_dir = None
 
         async def progress_callback(downloaded, total, speed):
             percent = (downloaded / total * 100) if total > 0 else 0
@@ -130,11 +132,22 @@ async def worker(bot: Bot, queue: asyncio.Queue):
             )
 
             if success:
-                # Ensure the file is readable by the local API server (different user/container)
+                # Create a unique directory for this specific file to preserve the original filename
+                # for the local API server's benefit (it uses the filename from the path).
+                task_id = uuid.uuid4().hex
+                task_dir = os.path.join(settings.DOWNLOAD_DIR, task_id)
+                os.makedirs(task_dir, exist_ok=True)
                 try:
-                    os.chmod(destination, 0o666)
+                    os.chmod(task_dir, 0o777)
                 except Exception as e:
-                    logger.warning(f"Failed to set permissions on {destination}: {e}")
+                    logger.warning(f"Failed to set permissions on {task_dir}: {e}")
+
+                final_destination = os.path.join(task_dir, original_filename)
+                os.rename(destination, final_destination)
+                try:
+                    os.chmod(final_destination, 0o666)
+                except Exception as e:
+                    logger.warning(f"Failed to set permissions on {final_destination}: {e}")
 
                 await bot.edit_message_text(
                     text=f"📤 **Uploading {original_filename}...**",
@@ -143,22 +156,16 @@ async def worker(bot: Bot, queue: asyncio.Queue):
                     parse_mode="Markdown",
                 )
 
-                # Rename the file to its original sanitized name to help the API server
-                # We keep the UUID prefix to avoid collisions in the shared directory
-                final_filename = f"{uuid.uuid4().hex}_{original_filename}"
-                final_destination = os.path.join(settings.DOWNLOAD_DIR, final_filename)
-                os.rename(destination, final_destination)
-                destination = final_destination # Update for finally block cleanup
-
                 logger.info(f"Sending file via local path: {final_destination}")
-                
-                document = FSInputFile(final_destination, filename=original_filename)
+
+                # Using file:// prefix and a string bypasses some aiogram multi-part logic
+                # and is often more reliable with local Bot API servers.
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=document,
+                    document=f"file://{final_destination}",
                     caption=f"{original_filename}",
                 )
-                
+
                 await bot.edit_message_text(
                     text=f"✅ **Successfully transferred:** {original_filename}",
                     chat_id=chat_id,
@@ -183,6 +190,13 @@ async def worker(bot: Bot, queue: asyncio.Queue):
             except Exception:
                 pass
         finally:
-            if os.path.exists(destination):
-                os.remove(destination)
+            # Cleanup logic
+            try:
+                if task_dir and os.path.exists(task_dir):
+                    shutil.rmtree(task_dir)
+                if os.path.exists(destination):
+                    os.remove(destination)
+            except Exception as e:
+                logger.error(f"Cleanup error: {e}")
             queue.task_done()
+
