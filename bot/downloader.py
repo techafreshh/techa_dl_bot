@@ -155,10 +155,9 @@ async def worker(bot: Bot, queue: asyncio.Queue):
                 # In local mode, pass the absolute file path as a string.
                 # The local API server reads the file directly from disk (shared volume),
                 # bypassing multipart upload entirely and avoiding FILE_PARTS_INVALID.
-                file_uri = f"file://{final_destination}"
                 await bot.send_document(
                     chat_id=settings.TARGET_GROUP_ID,
-                    document=file_uri,
+                    document=final_destination,
                     caption=f"{original_filename}",
                     request_timeout=1800,
                 )
